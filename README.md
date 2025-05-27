@@ -1,143 +1,146 @@
-# Processador de Notas Fiscais com IA
+# Invoice Processor with AI
 
-Este projeto utiliza OCR (Reconhecimento Ótico de Caracteres) e a API da OpenAI para extrair informações de notas fiscais em formato PDF ou imagem. O sistema possui uma interface web moderna construída com Vue.js e um backend em Python/Flask.
+This project uses OCR (Optical Character Recognition) and the OpenAI API to extract information from invoices in PDF or image formats. The system features a modern web interface built with Vue.js and a backend in Python/Flask.
 
-## Requisitos do Sistema
+## System Requirements
 
 ### Backend
 
-- Python 3.8 ou superior
-- Tesseract OCR instalado no sistema
-- Poppler (para processamento de PDFs)
-- Chave de API da OpenAI
+- Python 3.8 or higher
+- Tesseract OCR installed on the system
+- Poppler (for PDF processing)
+- OpenAI API Key
 
 ### Frontend
 
-- Node.js 16 ou superior
-- NPM ou Yarn
+- Node.js 16 or higher
+- NPM or Yarn
 
-## Instalação
+## Installation
 
-### 1. Configuração do Backend
+### 1. Backend Setup
 
-1. Instale o Tesseract OCR:
+1. Install Tesseract OCR:
 
-   - Windows: Baixe e instale do [instalador oficial](https://github.com/UB-Mannheim/tesseract/wiki)
+   - Windows: Download and install from the [official installer](https://github.com/UB-Mannheim/tesseract/wiki)
    - Linux: `sudo apt-get install tesseract-ocr`
    - Mac: `brew install tesseract`
 
-2. Instale o Poppler:
+2. Install Poppler:
 
-   - Windows: Baixe de [poppler para Windows](http://blog.alivate.com.au/poppler-windows/)
+   - Windows: Download from [Poppler for Windows](http://blog.alivate.com.au/poppler-windows/)
    - Linux: `sudo apt-get install poppler-utils`
    - Mac: `brew install poppler`
 
-3. Configure o ambiente Python:
+3. Configure the Python environment:
 
-```bash
-# Entre no diretório backend
-cd backend
+   ```bash
+   # Enter the backend directory
+   cd backend
 
-# Instale as dependências
-pip install -r requirements.txt
-```
+   # Install dependencies
+   pip install -r requirements.txt
 
-4. Configure suas credenciais da OpenAI:
-   - Crie um arquivo `.env` no diretório `backend` com:
+4. Set up your OpenAI credentials:
+   Create a `.env` file in the `backend` directory with:
+
    ```
-   OPENAI_API_KEY=sua_chave_aqui
+   OPENAI_API_KEY=your_key_here
    OPENAI_MODEL=gpt-3.5-turbo
    ```
 
-### 2. Configuração do Frontend
+### 2. Frontend Setup
 
-1. Instale as dependências do frontend:
+1. Install frontend dependencies:
 
-```bash
-# Entre no diretório do frontend
-cd frontend/nf_reader
+   ```bash
+   # Enter the frontend directory
+   cd frontend/nf_reader
 
-# Instale as dependências
-npm install
-```
+   # Install dependencies
+   npm install
+   ```
 
-## Executando o Projeto
+## Running the Project
 
-1. Inicie o backend:
+1. Start the backend:
 
-```bash
-# No diretório backend
-python app.py
-```
+   ```bash
+   # In the backend directory
+   python app.py
+   ```
 
-O servidor Flask iniciará em `http://localhost:5000`
+   The Flask server will start at `http://localhost:5000`
 
-2. Em outro terminal, inicie o frontend:
+2. In another terminal, start the frontend:
 
-```bash
-# No diretório frontend/nf_reader
-npm run dev
-```
+   ```bash
+   # In the frontend/nf_reader directory
+   npm run dev
+   ```
 
-O servidor de desenvolvimento Vue iniciará em `http://localhost:5173`
+   The Vue development server will start at `http://localhost:5173`
 
-3. Acesse a aplicação em seu navegador em `http://localhost:5173`
+3. Open the application in your browser at `http://localhost:5173`
 
-## Uso
+## Usage
 
-1. Acesse a interface web
-2. Arraste e solte uma nota fiscal (PDF ou imagem) ou clique para selecionar o arquivo
-3. O sistema processará automaticamente o documento e exibirá as informações extraídas:
-   - Número da nota fiscal
-   - Data de emissão
-   - Valor total
-   - CNPJ do emitente
-   - Nome/Razão Social do emitente
-   - Endereço do emitente
-   - Chave de acesso
-   - Lista de itens com detalhes
+1. Access the web interface
+2. Drag and drop an invoice (PDF or image), or click to select the file
+3. The system will automatically process the document and display the extracted information:
 
-## Estrutura do Projeto
+   * Invoice number
+   * Issue date
+   * Total amount
+   * Issuer's CNPJ
+   * Issuer’s name or legal name
+   * Issuer’s address
+   * Access key
+   * List of items with details
+
+## Project Structure
 
 ```
 .
 ├── backend/
-│   ├── app.py              # Servidor Flask
-│   ├── nf_processor.py     # Processamento de notas fiscais
-│   └── requirements.txt    # Dependências Python
+│   ├── app.py              # Flask server
+│   ├── nf_processor.py     # Invoice processing
+│   └── requirements.txt    # Python dependencies
 │
 └── frontend/
-    └── nf_reader/         # Aplicação Vue.js
-        ├── src/           # Código fonte
-        ├── public/        # Arquivos estáticos
-        └── package.json   # Dependências Node.js
+    └── nf_reader/          # Vue.js application
+        ├── src/            # Source code
+        ├── public/         # Static files
+        └── package.json    # Node.js dependencies
 ```
 
-## Solução de Problemas
+## Troubleshooting
 
 ### Backend
 
-- Verifique se o Tesseract está instalado e acessível no PATH do sistema
-- Confirme se o Poppler está instalado e configurado corretamente
-- Verifique se a chave da API OpenAI está configurada no arquivo `.env`
+* Ensure Tesseract is installed and accessible in the system PATH
+* Confirm Poppler is installed and configured correctly
+* Verify that the OpenAI API key is set in the `.env` file
 
 ### Frontend
 
-- Certifique-se de que todas as dependências foram instaladas com `npm install`
-- Verifique se o backend está rodando antes de iniciar o frontend
-- Limpe o cache do navegador se houver problemas de exibição
+* Make sure all dependencies were installed with `npm install`
+* Check if the backend is running before starting the frontend
+* Clear your browser cache if you encounter display issues
 
-## Tecnologias Utilizadas
+## Technologies Used
 
-- Backend:
+* Backend:
 
-  - Python
-  - Flask
-  - Tesseract OCR
-  - OpenAI API
-  - PDF2Image/Poppler
+  * Python
+  * Flask
+  * Tesseract OCR
+  * OpenAI API
+  * PDF2Image/Poppler
 
-- Frontend:
-  - Vue 3
-  - Vite
-  - CSS Moderno
+* Frontend:
+
+  * Vue 3
+  * Vite
+  * Modern CSS
+
