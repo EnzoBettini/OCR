@@ -1,14 +1,14 @@
 <script setup>
 import { ref } from "vue";
 
-// --- Lógica original da sua aplicação (NÃO MODIFICADA) ---
+// --- Lógica original da sua aplicação (mantida) ---
 const API_URL = "http://localhost:5000"; // Sua URL de API
 
 const fileInput = ref(null);
 const isDragging = ref(false);
 const isProcessing = ref(false);
 const error = ref(null);
-const result = ref(null);
+const result = ref(null); // Este vai armazenar o JSON da API
 
 const handleFileSelect = (event) => {
   const file = event.target.files[0];
@@ -43,10 +43,10 @@ const processFile = async (file) => {
 
     const data = await response.json();
     if (!response.ok) {
-      throw new Error(data.error || "Erro ao processar nota fiscal");
+      throw new Error(data.erro || data.error || "Erro ao processar nota fiscal"); // data.erro para seu backend Python
     }
 
-    result.value = data;
+    result.value = data; // 'data' já é o JSON parseado
 
   } catch (err) {
     console.error("Erro:", err);
@@ -62,15 +62,54 @@ const resetForm = () => {
   if (fileInput.value) fileInput.value.value = "";
   isDragging.value = false;
 };
-// --- Fim da lógica original ---
 
-// Lógica para o novo layout AdminLTE
+// --- Funções Utilitárias para Formatação ---
+const formatCurrency = (value) => {
+  if (value === null || value === undefined) return "N/A";
+  const number = Number(value);
+  if (isNaN(number)) return "Valor inválido";
+  return number.toLocaleString("pt-BR", {
+    style: "currency",
+    currency: "BRL",
+  });
+};
+
+const formatCNPJ = (cnpj) => {
+  if (!cnpj) return "N/A";
+  // Remove caracteres não numéricos
+  const cleaned = ('' + cnpj).replace(/\D/g, '');
+  // Aplica a máscara
+  if (cleaned.length === 14) {
+    return cleaned.replace(
+      /(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})/,
+      "$1.$2.$3/$4-$5"
+    );
+  }
+  return cnpj; // Retorna original se não tiver 14 dígitos
+};
+
+const formatDate = (dateString) => {
+  if (!dateString) return "N/A";
+  // A data já vem em DD/MM/AAAA, então podemos apenas retornar
+  // Se precisasse de formatação:
+  // const [day, month, year] = dateString.split('/');
+  // return `${day}/${month}/${year}`;
+  return dateString;
+};
+
+const formatChaveAcesso = (chave) => {
+  if (!chave) return "N/A";
+  // Formata em blocos de 4 dígitos
+  return chave.replace(/\s/g, '').replace(/(.{4})/g, '$1 ').trim();
+};
+
+// --- Lógica para o layout AdminLTE (mantida) ---
 const activeTab = ref('processar_nf');
-const sidebarOpen = ref(true);
+const sidebarOpen = ref(true); // Deixar aberto por padrão em telas maiores
 
 const navigateTo = (tabName) => {
   activeTab.value = tabName;
-  if (window.innerWidth < 768) {
+  if (window.innerWidth < 768 && sidebarOpen.value) { // Fecha a sidebar em mobile ao navegar
     sidebarOpen.value = false;
   }
 };
@@ -86,48 +125,60 @@ const menuItems = [
   { id: 'ajuda', label: 'Ajuda', icon: 'M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20zm-1.18 15.03L9.5 17V9.83l.03-.58.18-.45.9-.88c.6-.6 1-1 1-1.47a1 1 0 0 0-1-1 .94.94 0 0 0-.7.29l-.28.33L7.1 9.17l.02-.02a2.77 2.77 0 0 1 2.1-1.03c1.3 0 2.3.88 2.3 2.17 0 .66-.33 1.21-.88 1.7l-1 1v.7h3.03v1.68h-3.2zM12 18.88a1.2 1.2 0 1 1 0-2.4 1.2 1.2 0 0 1 0 2.4z' }
 ];
 
+// Garantir que a sidebar comece aberta em telas maiores
+// e fechada em telas menores ao carregar
+import { onMounted } from 'vue';
+onMounted(() => {
+  if (window.innerWidth < 768) {
+    sidebarOpen.value = false;
+  } else {
+    sidebarOpen.value = true;
+  }
+});
+
 </script>
 
 <template>
-  <div class="admin-layout">
-    <header class="admin-header">
-      <button class="sidebar-toggle" @click="toggleSidebar" aria-label="Toggle Sidebar">
-        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none"
-          stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-          <line x1="3" y1="12" x2="21" y2="12"></line>
-          <line x1="3" y1="6" x2="21" y2="6"></line>
-          <line x1="3" y1="18" x2="21" y2="18"></line>
-        </svg>
-      </button>
-      <div class="app-logo-header">Leitor NF-e Admin</div>
+<div class="admin-layout">
+  <header class="admin-header">
+    <button class="sidebar-toggle" @click="toggleSidebar" aria-label="Toggle Sidebar">
+      <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none"
+        stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <line x1="3" y1="12" x2="21" y2="12"></line>
+        <line x1="3" y1="6" x2="21" y2="6"></line>
+        <line x1="3" y1="18" x2="21" y2="18"></line>
+      </svg>
+    </button>
+    <div class="app-logo-header">Leitor NF-e Admin</div>
     </header>
 
-    <aside class="admin-sidebar" :class="{ 'open': sidebarOpen }">
-      <div class="sidebar-header">
-        <span class="app-logo-sidebar">Leitor NF-e</span>
-      </div>
-      <nav class="sidebar-nav">
-        <ul>
-          <li v-for="item in menuItems" :key="item.id" :class="{ 'active': activeTab === item.id }">
-            <a @click.prevent="navigateTo(item.id)">
-              <svg class="menu-icon" viewBox="0 0 24 24" fill="currentColor" stroke="none" width="20" height="20">
-                <path :d="item.icon" />
-              </svg>
-              <span>{{ item.label }}</span>
-            </a>
-          </li>
-        </ul>
-      </nav>
-    </aside>
+  <aside class="admin-sidebar" :class="{ 'open': sidebarOpen }">
+    <div class="sidebar-header">
+      <span class="app-logo-sidebar">Leitor NF-e</span>
+    </div>
+    <nav class="sidebar-nav">
+      <ul>
+        <li v-for="item in menuItems" :key="item.id" :class="{ 'active': activeTab === item.id }">
+          <a @click.prevent="navigateTo(item.id)">
+            <svg class="menu-icon" viewBox="0 0 24 24" fill="currentColor" stroke="none" width="20" height="20">
+              <path :d="item.icon" />
+            </svg>
+            <span>{{ item.label }}</span>
+          </a>
+        </li>
+      </ul>
+    </nav>
+  </aside>
 
-    <main class="admin-content" :class="{ 'sidebar-open': sidebarOpen }">
-      <div v-if="activeTab === 'processar_nf'">
-        <header class="page-header">
-          <h1>Leitor de Notas Fiscais</h1>
-          <p>Faça o upload de notas fiscais em PDF ou imagem.</p>
-        </header>
+  <main class="admin-content" :class="{ 'sidebar-pushed': sidebarOpen }">
+    <div v-if="activeTab === 'processar_nf'">
+      <header class="page-header">
+        <h1>Leitor de Notas Fiscais</h1>
+        <p>Faça o upload de notas fiscais em PDF ou imagem para extração automática dos dados.</p>
+      </header>
 
-        <div class="content-area">
+      <div class="content-area">
+        <div class="upload-area-wrapper">
           <div class="upload-area" :class="{ 'is-dragging': isDragging }" @dragenter.prevent="isDragging = true"
             @dragleave.prevent="isDragging = false" @dragover.prevent @drop.prevent="handleDrop">
             <input type="file" ref="fileInput" class="file-input-hidden" @change="handleFileSelect"
@@ -144,105 +195,121 @@ const menuItems = [
                   clique para selecionar
                 </button>
               </p>
-              <p class="upload-hint">PDF, PNG, JPG ou JPEG</p>
+              <p class="upload-hint">Formatos suportados: PDF, PNG, JPG ou JPEG</p>
             </div>
 
             <div v-if="isProcessing" class="processing-indicator">
               <div class="spinner"></div>
-              <p>Processando nota fiscal...</p>
+              <p>Processando nota fiscal, por favor aguarde...</p>
             </div>
           </div>
+        </div>
 
-          <div v-if="error" class="error-message">{{ error }}</div>
 
-          <div v-if="result" class="results-section">
-            <h2 class="results-title">Dados Extraídos</h2>
+        <div v-if="error" class="error-message">
+            <strong>Erro:</strong> {{ error }}
+        </div>
 
-            <div class="card results-card">
-              <div class="results-grid">
-                <div class="result-item">
-                  <p class="result-label">Número da NF</p>
-                  <p class="result-value">{{ result["numero_da_nota_fiscal"] }}</p>
-                </div>
-                <div class="result-item">
-                  <p class="result-label">Data de Emissão</p>
-                  <p class="result-value">{{ result["data_de_emissao"] }}</p>
-                </div>
-                <div class="result-item">
-                  <p class="result-label">Valor Total</p>
-                  <p class="result-value">R$ {{ result["valor_total"] }}</p>
-                </div>
-                <div class="result-item">
-                  <p class="result-label">CNPJ Emitente</p>
-                  <p class="result-value">{{ result["CNPJ_do_emitente"] }}</p>
-                </div>
+        <div v-if="result && !result.erro" class="results-section"> <h2 class="results-title">Dados Extraídos da Nota Fiscal</h2>
+
+          <div class="card results-card">
+            <div class="results-grid">
+              <div class="result-item">
+                <p class="result-label">Número da NF</p>
+                <p class="result-value">{{ result.numero_nota_fiscal || 'N/A' }}</p>
               </div>
-
-              <div class="result-group-flex">
-                <div class="flex-item-emitente-nome">
-                  <p class="result-label">Nome Emitente</p>
-                  <p class="result-value">
-                    {{ result["nome/razao_social_do_emitente"] }}
-                  </p>
-                </div>
-                <div class="flex-item-emitente-endereco">
-                  <p class="result-label">Endereço</p>
-                  <p class="result-value">{{ result["endereco_do_emitente"] }}</p>
-                </div>
+              <div class="result-item">
+                <p class="result-label">Data de Emissão</p>
+                <p class="result-value">{{ formatDate(result.data_emissao) }}</p>
               </div>
-
-              <div class="result-group">
-                <p class="result-label">Chave de Acesso</p>
-                <p class="result-value break-all">{{ result["chave_de_acesso"] }}</p>
+              <div class="result-item">
+                <p class="result-label">Valor Total</p>
+                <p class="result-value primary-value">{{ formatCurrency(result.valor_total) }}</p>
               </div>
+              <div class="result-item">
+                <p class="result-label">CNPJ Emitente</p>
+                <p class="result-value">{{ formatCNPJ(result.cnpj_emitente) }}</p>
+              </div>
+            </div>
 
-              <div v-if="result['lista_de_itens'] && result['lista_de_itens'].length > 0" class="result-group">
-                <h3 class="items-title">Itens da Nota</h3>
-                <div class="items-list">
-                  <div v-for="(item, index) in result['lista_de_itens']" :key="index" class="item-entry">
-                    <p class="item-description">{{ item["descricao"] }}</p>
-                    <div class="item-details-grid">
-                      <div>
-                        <span class="item-detail-label">Valor: </span>
-                        <span class="item-detail-value">R$ {{ item["valor_unitario"] }}</span>
-                      </div>
-                      <div>
-                        <span class="item-detail-label">Qtd: </span>
-                        <span class="item-detail-value">{{ item["quantidade"] }}</span>
-                      </div>
-                      <div>
-                        <span class="item-detail-label">Total: </span>
-                        <span class="item-detail-value">R$ {{ item["valor_total"] }}</span>
-                      </div>
+            <div class="result-group-flex">
+              <div class="flex-item-emitente-nome">
+                <p class="result-label">Nome / Razão Social do Emitente</p>
+                <p class="result-value">
+                  {{ result.nome_razao_social_emitente || 'N/A' }}
+                </p>
+              </div>
+              <div class="flex-item-emitente-endereco">
+                <p class="result-label">Endereço do Emitente</p>
+                <p class="result-value">{{ result.endereco_emitente || 'N/A' }}</p>
+              </div>
+            </div>
+
+            <div class="result-group" v-if="result.chave_acesso">
+              <p class="result-label">Chave de Acesso</p>
+              <p class="result-value break-all code-like">{{ formatChaveAcesso(result.chave_acesso) }}</p>
+            </div>
+             <div class="result-group" v-else>
+              <p class="result-label">Chave de Acesso</p>
+              <p class="result-value">N/A</p>
+            </div>
+
+
+            <div v-if="result.itens && result.itens.length > 0" class="result-group">
+              <h3 class="items-title">Itens da Nota</h3>
+              <div class="items-list">
+                <div v-for="(item, index) in result.itens" :key="index" class="item-entry card-inset">
+                  <p class="item-description">{{ index + 1 }}. {{ item.descricao || 'Descrição não informada' }}</p>
+                  <div class="item-details-grid">
+                    <div>
+                      <span class="item-detail-label">Qtd: </span>
+                      <span class="item-detail-value">{{ typeof item.quantidade === 'number' ? item.quantidade.toFixed(2) : 'N/A' }}</span>
+                    </div>
+                    <div>
+                      <span class="item-detail-label">Vl. Unit.: </span>
+                      <span class="item-detail-value">{{ formatCurrency(item.valor_unitario) }}</span>
+                    </div>
+                    <div>
+                      <span class="item-detail-label">Vl. Total Item: </span>
+                      <span class="item-detail-value">{{ formatCurrency(item.valor_total_item) }}</span>
                     </div>
                   </div>
                 </div>
               </div>
             </div>
-
-            <div class="new-invoice-action">
-              <button @click="resetForm" class="btn btn-primary btn-gradient-hover">
-                Processar Nova Nota
-              </button>
+             <div v-else class="result-group">
+                <h3 class="items-title">Itens da Nota</h3>
+                <p class="result-value">Nenhum item encontrado.</p>
             </div>
           </div>
-        </div>
-      </div>
 
-      <div v-if="activeTab === 'historico'" class="placeholder-content">
-        <h2>Histórico de Notas</h2>
-        <p>Esta seção exibirá o histórico de notas fiscais processadas. (Funcionalidade futura)</p>
+          <div class="new-invoice-action">
+            <button @click="resetForm" class="btn btn-primary btn-gradient-hover">
+              <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-right: 8px; vertical-align: middle;"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="12" y1="18" x2="12" y2="12"></line><line x1="9" y1="15" x2="15" y2="15"></line></svg>
+              Processar Nova Nota
+            </button>,
+          </div>
+        </div>
+        <div v-if="result && result.erro" class="error-message"> <strong>Erro da API:</strong> {{ result.erro }}
+        </div>
+
       </div>
-      <div v-if="activeTab === 'configuracoes'" class="placeholder-content">
-        <h2>Configurações</h2>
-        <p>Esta seção permitirá configurar a aplicação. (Funcionalidade futura)</p>
-      </div>
-      <div v-if="activeTab === 'ajuda'" class="placeholder-content">
-        <h2>Ajuda & Suporte</h2>
-        <p>Informações de ajuda e contato para suporte. (Funcionalidade futura)</p>
-      </div>
-    </main>
-  </div>
+    </div>
+
+    <div v-if="activeTab === 'historico'" class="placeholder-content card">
+      <h2>Histórico de Notas</h2>
+      <p>Esta seção exibirá o histórico de notas fiscais processadas. (Funcionalidade futura)</p>
+    </div>
+    <div v-if="activeTab === 'configuracoes'" class="placeholder-content card">
+      <h2>Configurações</h2>
+      <p>Esta seção permitirá configurar a aplicação. (Funcionalidade futura)</p>
+    </div>
+    <div v-if="activeTab === 'ajuda'" class="placeholder-content card">
+      <h2>Ajuda & Suporte</h2>
+      <p>Informações de ajuda e contato para suporte. (Funcionalidade futura)</p>
+    </div>
+  </main>
+</div>
 </template>
 
 <style>
@@ -256,45 +323,63 @@ const menuItems = [
 }
 
 :root {
-  --cor-principal: #00a9b3;
-  --gradiente-secundario: linear-gradient(92.99deg, #ef60a3 6.23%, #ff8a3d 99.16%);
-  --cor-sidebar-bg: #2d3748;
-  --cor-sidebar-texto: #e2e8f0;
-  --cor-sidebar-texto-hover: #FFFFFF;
+  --cor-principal: #00a9b3; /* Azul esverdeado moderno */
+  --cor-secundaria: #007E8A; /* Tom mais escuro da principal */
+  --cor-destaque: #FF8A3D; /* Laranja para destaque/gradientes */
+  --cor-gradiente-inicio: #00a9b3;
+  --cor-gradiente-fim: #007E8A; /* Gradiente sutil */
+
+  --cor-sidebar-bg: #2c3e50; /* Azul escuro acinzentado */
+  --cor-sidebar-texto: #ecf0f1; /* Cinza claro */
+  --cor-sidebar-texto-hover: #ffffff;
   --cor-sidebar-item-ativo-bg: var(--cor-principal);
-  --cor-conteudo-bg: #f7fafc;
-  --cor-texto-padrao: #1f2937;
-  --cor-header-texto: #FFFFFF;
+  --cor-sidebar-item-ativo-texto: #ffffff;
+
+  --cor-conteudo-bg: #f4f6f9; /* Cinza muito claro, padrão AdminLTE */
+  --cor-texto-padrao: #34495e; /* Azul acinzentado escuro */
+  --cor-header-texto: #ffffff;
+
+  --cor-sucesso: #2ecc71;
+  --cor-erro: #e74c3c;
+  --cor-aviso: #f39c12;
+
+  --card-bg: #ffffff;
+  --card-border-radius: 0.5rem; /* 8px */
+  --card-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+
   --sidebar-width: 260px;
   --header-height: 60px;
+
+  --font-principal: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
 }
 
 body {
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  font-family: var(--font-principal);
   background-color: var(--cor-conteudo-bg);
   color: var(--cor-texto-padrao);
   line-height: 1.6;
+  font-size: 16px; /* Base font size */
 }
 
 .admin-layout {
   display: flex;
-  flex-direction: column;
+  flex-direction: column; /* Para o header ficar acima de tudo */
   min-height: 100vh;
 }
 
 .admin-header {
   height: var(--header-height);
-  background-color: var(--cor-principal);
+  background: var(--cor-principal); /* Usando gradiente */
   color: var(--cor-header-texto);
   display: flex;
   align-items: center;
-  padding: 0 20px;
+  padding: 0 25px;
   position: fixed;
   top: 0;
   left: 0;
   right: 0;
-  z-index: 1000;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  z-index: 1030; /* Alto z-index, comum em admin */
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
 }
 
 .sidebar-toggle {
@@ -302,14 +387,19 @@ body {
   border: none;
   color: var(--cor-header-texto);
   cursor: pointer;
-  font-size: 1.5rem;
-  margin-right: 15px;
-  display: none;
+  font-size: 1.6rem; /* Aumentado um pouco */
+  margin-right: 20px;
+  padding: 5px;
+  display: none; /* Escondido por padrão, aparece em mobile */
+}
+.sidebar-toggle:hover {
+  opacity: 0.8;
 }
 
 .app-logo-header {
-  font-size: 1.5rem;
+  font-size: 1.6rem; /* Aumentado */
   font-weight: 600;
+  letter-spacing: -0.5px; /* Pequeno ajuste */
 }
 
 .admin-sidebar {
@@ -317,26 +407,27 @@ body {
   background-color: var(--cor-sidebar-bg);
   color: var(--cor-sidebar-texto);
   position: fixed;
-  top: var(--header-height);
+  top: 0; /* Começa do topo */
   left: 0;
   bottom: 0;
-  padding-top: 20px;
+  padding-top: var(--header-height); /* Espaço para o header fixo */
   transition: transform 0.3s ease-in-out;
-  z-index: 999;
+  z-index: 1020; /* Abaixo do header */
   overflow-y: auto;
+  box-shadow: 3px 0 10px rgba(0,0,0,0.1); /* Sombra sutil na lateral */
 }
 
 .admin-sidebar .sidebar-header {
-  padding: 0 20px 20px 20px;
+  padding: 20px;
   text-align: center;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
-  margin-bottom: 10px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  margin-bottom: 15px;
 }
 
 .app-logo-sidebar {
-  font-size: 1.3rem;
+  font-size: 1.4rem; /* Ajustado */
   font-weight: 500;
-  color: var(--cor-header-texto);
+  color: var(--cor-header-texto); /* Branco para contraste */
 }
 
 .sidebar-nav ul {
@@ -346,100 +437,105 @@ body {
 .sidebar-nav li a {
   display: flex;
   align-items: center;
-  padding: 12px 20px;
+  padding: 14px 25px; /* Ajustado padding */
   color: var(--cor-sidebar-texto);
   text-decoration: none;
   transition: background-color 0.2s ease, color 0.2s ease;
-  gap: 10px;
+  gap: 12px; /* Espaçamento entre ícone e texto */
+  font-size: 0.95rem; /* Levemente menor para mais itens */
 }
 
 .menu-icon {
-  color: var(--cor-principal);
+  color: var(--cor-sidebar-texto); /* Cor do ícone inicial */
+  opacity: 0.8;
   min-width: 20px;
+  transition: color 0.2s ease, opacity 0.2s ease;
 }
 
 .sidebar-nav li a:hover {
-  background-color: rgba(255, 255, 255, 0.05);
+  background-color: rgba(255, 255, 255, 0.08);
   color: var(--cor-sidebar-texto-hover);
 }
-
 .sidebar-nav li a:hover .menu-icon {
-  color: var(--cor-sidebar-texto-hover);
+  color: var(--cor-principal); /* Ícone muda para a cor principal no hover */
+  opacity: 1;
 }
 
 .sidebar-nav li.active a {
   background-color: var(--cor-sidebar-item-ativo-bg);
-  color: var(--cor-header-texto);
-  font-weight: 500;
+  color: var(--cor-sidebar-item-ativo-texto);
+  font-weight: 600; /* Mais destaque */
 }
-
 .sidebar-nav li.active a .menu-icon {
-  color: var(--cor-header-texto);
+  color: var(--cor-sidebar-item-ativo-texto); /* Mantém cor do texto ativo */
+  opacity: 1;
 }
 
 .admin-content {
   margin-top: var(--header-height);
-  margin-left: ;
-  padding: 30px;
+  margin-left: var(--sidebar-width); /* Padrão para quando a sidebar está aberta */
+  padding: 25px 30px; /* Padding ajustado */
   flex-grow: 1;
   transition: margin-left 0.3s ease-in-out;
   background-color: var(--cor-conteudo-bg);
 }
-
-/* --- ESTILOS ORIGINAIS DA SUA APLICAÇÃO (adaptados/mantidos) --- */
+/* Classe para empurrar o conteúdo quando a sidebar estiver aberta em mobile */
 .page-header {
-  text-align: center;
-  margin-bottom: 2.5rem;
+  text-align: left; /* Alinhado à esquerda */
+  margin-bottom: 2rem; /* Reduzido um pouco */
+  padding-bottom: 1rem;
+  border-bottom: 1px solid #e0e0e0;
 }
 
 .page-header h1 {
-  font-size: 2rem;
-  font-weight: 700;
-  color: #111827;
-  margin-bottom: 0.5rem;
+  font-size: 1.8rem; /* Reduzido */
+  font-weight: 600; /* Ajustado */
+  color: var(--cor-texto-padrao);
+  margin-bottom: 0.25rem;
 }
 
 .page-header p {
-  font-size: 1rem;
-  color: #4b5563;
+  font-size: 0.95rem;
+  color: #6c757d; /* Cinza mais suave */
 }
 
 .content-area {
-  max-width: 860px;
-  /* Aumentado um pouco para o novo layout de dados */
+  max-width: 900px; /* Aumentado para acomodar melhor os dados */
   margin: 0 auto;
 }
 
+.upload-area-wrapper {
+  margin-bottom: 2rem; /* Espaçamento após a área de upload */
+}
+
 .upload-area {
-  border: 2px dashed #cbd5e1;
-  border-radius: 0.75rem;
+  border: 2px dashed #d1d8e0; /* Cinza mais suave */
+  border-radius: var(--card-border-radius);
   padding: 2.5rem;
   text-align: center;
-  background-color: #ffffff;
+  background-color: var(--card-bg);
   transition: border-color 0.2s ease, background-color 0.2s ease;
-  margin-bottom: 1.5rem;
+  box-shadow: var(--card-shadow);
 }
-
 .upload-area.is-dragging {
   border-color: var(--cor-principal);
-  background-color: #e6f7f8;
+  background-color: #f0f9fa; /* Fundo muito claro ao arrastar */
 }
 
-.file-input-hidden {
-  display: none;
-}
+.file-input-hidden { display: none; }
 
 .upload-icon {
   margin: 0 auto 1rem auto;
-  height: 3rem;
-  width: 3rem;
-  color: #9ca3af;
+  height: 3.5rem; /* Aumentado */
+  width: 3.5rem;
+  color: var(--cor-principal); /* Cor do ícone */
+  opacity: 0.7;
 }
 
 .upload-text {
-  margin-top: 1rem;
-  font-size: 1rem;
-  color: #4b5563;
+  margin-top: 0.5rem; /* Reduzido */
+  font-size: 1.05rem; /* Aumentado */
+  color: var(--cor-texto-padrao);
 }
 
 .upload-browse-button {
@@ -452,19 +548,15 @@ body {
   padding: 0;
   transition: color 0.2s ease;
 }
-
 .upload-browse-button:hover {
-  background-image: var(--gradiente-secundario);
-  -webkit-background-clip: text;
-  background-clip: text;
-  color: transparent;
-  text-decoration: none;
+  color: var(--cor-secundaria); /* Tom mais escuro no hover */
+  text-decoration: underline;
 }
 
 .upload-hint {
-  margin-top: 0.5rem;
-  font-size: 0.875rem;
-  color: #6b7280;
+  margin-top: 0.75rem;
+  font-size: 0.85rem; /* Reduzido */
+  color: #6c757d;
 }
 
 .processing-indicator {
@@ -472,38 +564,33 @@ body {
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  color: #4b5563;
+  padding: 2rem 0; /* Adiciona padding vertical */
+  color: var(--cor-texto-padrao);
 }
-
 .spinner {
   animation: spin 1s linear infinite;
   border-radius: 50%;
-  height: 2.5rem;
-  width: 2.5rem;
-  border: 3px solid #e0e7ff;
+  height: 3rem; /* Aumentado */
+  width: 3rem;
+  border: 4px solid #e0e7ff; /* Borda mais grossa */
   border-top-color: var(--cor-principal);
-  margin-bottom: 1rem;
+  margin-bottom: 1.25rem;
 }
-
-@keyframes spin {
-  from {
-    transform: rotate(0deg);
-  }
-
-  to {
-    transform: rotate(360deg);
-  }
-}
+@keyframes spin { to { transform: rotate(360deg); } }
 
 .error-message {
   margin-top: 1rem;
   margin-bottom: 1.5rem;
   padding: 1rem 1.25rem;
-  background-color: #fee2e2;
-  color: #b91c1c;
-  border-radius: 0.5rem;
-  border: 1px solid #fca5a5;
+  background-color: #ffebee; /* Vermelho claro */
+  color: var(--cor-erro);
+  border-radius: var(--card-border-radius);
+  border: 1px solid #f44336; /* Vermelho */
   font-size: 0.9rem;
+  box-shadow: 0 2px 4px rgba(231, 76, 60, 0.2);
+}
+.error-message strong {
+  font-weight: 600;
 }
 
 .results-section {
@@ -511,235 +598,223 @@ body {
 }
 
 .results-title {
-  font-size: 1.75rem;
+  font-size: 1.6rem; /* Ajustado */
   font-weight: 600;
-  color: #111827;
+  color: var(--cor-texto-padrao);
   margin-bottom: 1.5rem;
   text-align: left;
 }
 
-.card {
-  background-color: #ffffff;
-  border-radius: 0.75rem;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
-  padding: 2rem;
+.card { /* Estilo base para todos os cards, incluindo results e placeholders */
+  background-color: var(--card-bg);
+  border-radius: var(--card-border-radius);
+  box-shadow: var(--card-shadow);
+  padding: 2rem; /* Padding padrão */
 }
 
-/* Grid Principal Otimizado */
+
 .results-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-  /* Ajustado */
-  gap: 1.5rem 2.5rem;
-  /* Gap horizontal maior */
+  grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); /* Ajustado minmax */
+  gap: 1.75rem 2rem; /* Ajustado gap */
   margin-bottom: 2rem;
 }
 
-/* Novo: Dados do Emitente em Colunas Flexíveis */
 .result-group-flex {
   display: flex;
   flex-wrap: wrap;
-  gap: 1.5rem 2.5rem;
-  /* Espaçamento vertical e horizontal entre os itens flex */
+  gap: 1.75rem 2rem;
   margin-bottom: 2rem;
-  /* Espaçamento inferior do grupo */
 }
-
 .flex-item-emitente-nome {
-  flex: 1 1 300px;
-  /* Cresce, Encolhe, Base de 300px */
-  min-width: 250px;
-  /* Evita que fique muito espremido */
+  flex: 1 1 280px; /* Ajustado base */
 }
-
 .flex-item-emitente-endereco {
-  flex: 2 1 350px;
-  /* Permite crescer mais, Base de 350px */
-  min-width: 300px;
-  /* Evita que fique muito espremido */
+  flex: 2 1 380px; /* Ajustado base */
 }
 
-/* Grupos restantes e seus itens */
-.result-group {
-  margin-bottom: 2rem;
-}
+.result-group { margin-bottom: 2rem; }
+.result-group:last-child { margin-bottom: 0; }
 
-/* Mantido para Chave de Acesso e Itens */
-.result-group:last-child {
-  margin-bottom: 0;
-}
 
 .result-label {
-  font-size: 0.875rem;
-  color: #6b7280;
-  margin-bottom: 0.25rem;
-  font-weight: 500;
+  font-size: 0.8rem; /* Menor para dar mais espaço ao valor */
+  color: #6c757d; /* Cinza */
+  margin-bottom: 0.3rem; /* Espaçamento ajustado */
+  font-weight: 500; /* Mais leve */
+  text-transform: uppercase; /* Para um look mais "label" */
+  letter-spacing: 0.5px;
 }
 
 .result-value {
-  font-size: 1rem;
-  color: #1f2937;
-  font-weight: 500;
+  font-size: 1rem; /* Tamanho padrão para valores */
+  color: var(--cor-texto-padrao);
+  font-weight: 500; /* Peso normal */
+  line-height: 1.4; /* Melhor legibilidade para textos longos */
 }
-
-.result-value.break-all {
-  word-break: break-all;
+.result-value.primary-value { /* Para o Valor Total da NF */
+    font-size: 1.3rem;
+    font-weight: 600;
+    color: var(--cor-principal);
+}
+.result-value.break-all { word-break: break-all; }
+.result-value.code-like { /* Para Chave de Acesso */
+    font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, Courier, monospace;
+    background-color: #f8f9fa;
+    padding: 0.3rem 0.6rem;
+    border-radius: 4px;
+    display: inline-block;
+    border: 1px solid #e9ecef;
 }
 
 .items-title {
-  font-size: 1.25rem;
+  font-size: 1.3rem; /* Ajustado */
   font-weight: 600;
-  color: #1f2937;
+  color: var(--cor-texto-padrao);
+  margin-top: 2rem; /* Separar mais dos dados principais */
   margin-bottom: 1.25rem;
-  border-top: 1px solid #e5e7eb;
+  border-top: 1px solid #e9ecef;
   padding-top: 1.5rem;
 }
 
-.items-list>.item-entry:not(:last-child) {
-  margin-bottom: 1rem;
+.items-list > .item-entry:not(:last-child) {
+  margin-bottom: 1.25rem; /* Aumentado espaçamento entre itens */
 }
-
 .item-entry {
-  padding-bottom: 1rem;
-  border-bottom: 1px solid #e5e7eb;
+  padding: 1rem; /* Adiciona padding interno ao item */
+  border-bottom: none; /* Removida borda, .card-inset cuida disso */
 }
-
-.items-list>.item-entry:last-child {
-  border-bottom: none;
-  padding-bottom: 0;
-  margin-bottom: 0;
+.item-entry.card-inset { /* Novo estilo para cada item parecer um pequeno card */
+    background-color: #f8f9fa; /* Fundo levemente diferente */
+    border-radius: 6px;
+    border: 1px solid #e9ecef;
 }
 
 .item-description {
   font-weight: 600;
-  color: #1f2937;
-  margin-bottom: 0.5rem;
+  color: var(--cor-texto-padrao);
+  margin-bottom: 0.75rem; /* Ajustado */
+  font-size: 0.95rem;
 }
 
 .item-details-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
-  gap: 0.75rem;
-  font-size: 0.875rem;
+  grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); /* Ajustado minmax */
+  gap: 0.5rem 1rem; /* Ajustado gap */
+  font-size: 0.9rem; /* Ajustado */
 }
-
-.item-detail-label {
-  color: #6b7280;
-}
-
-.item-detail-value {
-  color: #1f2937;
-  font-weight: 500;
-}
+.item-detail-label { color: #6c757d; }
+.item-detail-value { color: var(--cor-texto-padrao); font-weight: 500; }
 
 .btn {
-  display: inline-block;
-  padding: 0.75rem 1.5rem;
-  font-size: 1rem;
+  display: inline-flex; /* Para alinhar ícone e texto */
+  align-items: center; /* Alinha ícone e texto verticalmente */
+  justify-content: center;
+  padding: 0.8rem 1.8rem; /* Padding ajustado */
+  font-size: 0.95rem; /* Ajustado */
   font-weight: 500;
   text-align: center;
-  border-radius: 0.5rem;
+  border-radius: var(--card-border-radius);
   cursor: pointer;
-  transition: background-color 0.2s ease, color 0.2s ease, border-color 0.2s ease, background-image 0.3s ease, opacity 0.2s ease;
+  transition: all 0.25s ease-in-out;
   border: 1px solid transparent;
+  text-transform: uppercase; /* Botões com texto maiúsculo */
+  letter-spacing: 0.5px;
 }
 
 .btn-primary {
   background-color: var(--cor-principal);
   color: #ffffff;
   border-color: var(--cor-principal);
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
 }
-
 .btn-primary:hover {
-  background-color: #008a93;
-  border-color: #008a93;
+  background-color: var(--cor-secundaria);
+  border-color: var(--cor-secundaria);
+  transform: translateY(-2px); /* Pequeno efeito de elevação */
+  box-shadow: 0 4px 8px rgba(0,0,0,0.15);
 }
 
-.btn-gradient-hover {
+.btn-gradient-hover { /* Mantido se você gostar do efeito, mas simplificado acima */
   position: relative;
   z-index: 1;
   overflow: hidden;
 }
-
 .btn-gradient-hover::before {
   content: "";
-  position: absolute;
-  top: 0;
-  right: 0;
-  bottom: 0;
-  left: 0;
-  background-image: var(--gradiente-secundario);
+  position: absolute; top: 0; right: 0; bottom: 0; left: 0;
+  background-image: linear-gradient(92.99deg, var(--cor-destaque) 6.23%, var(--cor-gradiente-fim) 99.16%); /* Usando novas cores */
   z-index: -1;
   transition: opacity 0.3s ease-in-out;
   opacity: 0;
   border-radius: inherit;
 }
-
-.btn-gradient-hover:hover::before {
-  opacity: 1;
-}
-
+.btn-gradient-hover:hover::before { opacity: 1; }
 .btn-gradient-hover:hover {
-  background-color: var(--cor-principal);
+  background-color: var(--cor-principal); /* Fallback caso o gradiente não seja o desejado */
   color: #ffffff;
   border-color: transparent;
 }
 
 .new-invoice-action {
-  margin-top: 2rem;
+  margin-top: 2.5rem; /* Aumentado */
   text-align: center;
 }
 
-/* Removida a classe .mt-3 específica, pois o espaçamento dos itens flex é tratado pelo 'gap' */
-/* Se precisar de margens específicas, adicione classes utilitárias conforme necessário */
-
-.placeholder-content {
-  padding: 20px;
-  background-color: #fff;
-  border-radius: 8px;
-  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+.placeholder-content { /* Herda de .card agora */
+  margin-top: 1rem; /* Espaçamento se houver múltiplos placeholders */
+}
+.placeholder-content h2 {
+  color: var(--cor-texto-padrao); /* Consistência */
+  margin-bottom: 10px;
+  font-weight: 600;
 }
 
-.placeholder-content h2 {
-  color: var(--cor-principal);
-  margin-bottom: 10px;
+/* Media Queries */
+@media (max-width: 992px) { /* Ponto de quebra para tablets */
+    .results-grid {
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    }
+    .flex-item-emitente-nome,
+    .flex-item-emitente-endereco {
+        flex-basis: calc(50% - 1rem); /* Tenta manter 2 colunas se possível */
+    }
 }
 
 @media (max-width: 768px) {
-  .sidebar-toggle {
-    display: block;
-  }
-
+  .sidebar-toggle { display: flex; align-items: center; }
   .admin-sidebar {
-    transform: translateX(-100%);
-    box-shadow: 2px 0 5px rgba(0, 0, 0, 0.1);
+    transform: translateX(calc(-1 * var(--sidebar-width))); /* Esconde a sidebar */
+    box-shadow: 3px 0 15px rgba(0, 0, 0, 0.2); /* Sombra mais pronunciada quando aberta */
+    padding-top: 0; /* Header cobre o topo */
+    top:0;
   }
-
-  .admin-sidebar.open {
-    transform: translateX(0);
-  }
-
-  .admin-content {
-    margin-left: 0;
-  }
+  .admin-sidebar.open { transform: translateX(0); }
+  .admin-content { margin-left: 0; } /* Conteúdo ocupa toda a largura */
 
   .app-logo-header {
-    margin-left: auto;
-    margin-right: auto;
+    flex-grow: 1; /* Permite que o logo centralize se não houver outros itens */
+    text-align: center;
+    margin-right: -40px; /* Ajuste para compensar o botão da sidebar */
   }
 
-  /* Ajuste para os itens flex do emitente em telas menores, se necessário */
+  .results-grid {
+    grid-template-columns: 1fr; /* Uma coluna em telas pequenas */
+    gap: 1.5rem 0;
+  }
   .result-group-flex {
-    gap: 1.5rem 1.5rem;
-    /* Pode reduzir o gap horizontal em telas menores */
+    flex-direction: column; /* Empilha os itens do emitente */
+    gap: 1.5rem 0;
   }
-
   .flex-item-emitente-nome,
   .flex-item-emitente-endereco {
     flex-basis: 100%;
-    /* Faz com que cada item ocupe a linha toda em telas menores */
     min-width: unset;
-    /* Remove min-width para permitir que ocupem 100% */
   }
+  .item-details-grid {
+    grid-template-columns: 1fr; /* Uma coluna para detalhes do item */
+  }
+  .page-header { text-align: center; }
+  .results-title { text-align: center; }
 }
 </style>
